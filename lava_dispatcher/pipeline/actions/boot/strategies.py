@@ -23,6 +23,7 @@
 
 # pylint: disable=unused-import
 
+from lava_dispatcher.pipeline.actions.boot.hyperv import BootHyperv
 from lava_dispatcher.pipeline.actions.boot.qemu import BootQEMU
 from lava_dispatcher.pipeline.actions.boot.pyocd import BootMonitorPyOCD
 from lava_dispatcher.pipeline.actions.boot.dfu import DFU
