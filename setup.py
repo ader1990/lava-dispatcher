@@ -91,7 +91,6 @@ setup(
         'configglue',
         'PyYAML',
         'pyserial >= 2.6',
-        '%s' % lzma,
         'requests',
         'netifaces >= 0.10.0',
         'nose',
@@ -104,22 +103,7 @@ setup(
         'pep8 >= 1.4.6',
         'testscenarios >= 0.4'
     ],
-    data_files=[
-        ('/usr/share/lava-dispatcher/',
-            ['etc/tftpd-hpa']),
-        ('/etc/exports.d',
-            ['etc/lava-dispatcher-nfs.exports']),
-        ('/etc/modprobe.d',
-            ['etc/lava-options.conf']),
-        ('/etc/modules-load.d/',
-            ['etc/lava-modules.conf']),
-        ('/etc/logrotate.d/',
-            ['etc/logrotate.d/lava-slave-log']),
-        ('/etc/init.d/',
-            ['etc/lava-slave.init']),
-        ('/usr/share/lava-dispatcher/',
-            ['etc/lava-slave.service'])
-    ],
+    data_files=[],
     scripts=[
         'lava-dispatch',
         'lava/dispatcher/lava-dispatcher-slave',

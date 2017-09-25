@@ -23,7 +23,7 @@ import os
 import shutil
 import tarfile
 import tempfile
-import guestfs
+#import guestfs
 import subprocess
 from configobj import ConfigObj
 

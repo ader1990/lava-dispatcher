@@ -22,7 +22,8 @@ import atexit
 import bz2
 import contextlib
 import logging
-import lzma
+#import lzma
+from backports import lzma as lzma
 import tarfile
 import os
 import re

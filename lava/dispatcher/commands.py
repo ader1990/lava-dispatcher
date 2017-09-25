@@ -54,11 +54,11 @@ class devices(DispatcherCommand):
 
 
 def run_legacy_job(job_data, oob_file, config, output_dir, validate):
-
+    """
     if os.getuid() != 0:
         logging.error("lava dispatch has to be run as root")
         exit(1)
-
+    """
     json_job_data = json.dumps(job_data)
     job = LavaTestJob(json_job_data, oob_file, config, output_dir)
 
@@ -159,11 +159,11 @@ class dispatch(DispatcherCommand):
         """
         Entry point for lava dispatch, after the arguments have been parsed.
         """
-
+        """
         if os.geteuid() != 0:
             logging.error("You need to be root to run lava-dispatch.")
             exit(1)
-
+        """
         if self.args.oob_fd:
             oob_file = os.fdopen(self.args.oob_fd, 'w')
         else:

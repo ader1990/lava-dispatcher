@@ -18,7 +18,7 @@
 # along
 # with this program; if not, see <http://www.gnu.org/licenses>.
 
-import pyudev
+#import pyudev
 from lava_dispatcher.pipeline.action import (
     Action,
     InfrastructureError
@@ -227,6 +227,7 @@ class WaitUSBDeviceAction(Action):
 
     def run(self, connection, args=None):
         self.logger.info("Waiting for USB device... %s:%s %s", self.usb_vendor_id, self.usb_product_id, self.board_id)
+        """
         context = pyudev.Context()
         monitor = pyudev.Monitor.from_netlink(context)
         monitor.filter_by('usb', 'usb_device')
@@ -235,4 +236,5 @@ class WaitUSBDeviceAction(Action):
                and (device.get('ID_VENDOR_ID', '') == str(self.usb_vendor_id)) \
                and (device.get('ID_MODEL_ID', '') == str(self.usb_product_id)):
                 break
+        """
         return connection

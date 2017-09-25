@@ -101,7 +101,7 @@ class GitHelper(VCSHelper):
 
     def __init__(self, url):
         super(GitHelper, self).__init__(url)
-        self.binary = '/usr/bin/git'
+        self.binary = 'C:\Program Files\Git\cmd\git.exe'
 
     def clone(self, dest_path, revision=None, branch=None):
         logger = logging.getLogger('dispatcher')

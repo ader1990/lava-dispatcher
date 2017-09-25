@@ -36,6 +36,7 @@ from shlex import shlex
 from distutils import spawn
 
 import pexpect
+from pexpect import popen_spawn
 
 from lava_dispatcher.errors import CriticalError
 
@@ -441,10 +442,10 @@ class DrainConsoleOutput(threading.Thread):
         threading.Thread.join(self, timeout)
 
 
-class logging_spawn(pexpect.spawn):
+class logging_spawn(popen_spawn.PopenSpawn):
 
     def __init__(self, command, cwd=None, timeout=30):
-        pexpect.spawn.__init__(
+        popen_spawn.PopenSpawn.__init__(
             self, command, cwd=cwd, timeout=timeout)
 
         # serial can be slow, races do funny things, so increase delay

@@ -32,7 +32,8 @@ import requests
 import subprocess
 import bz2
 import contextlib
-import lzma
+#import lzma
+from backports import lzma as lzma
 import zlib
 from lava_dispatcher.pipeline.action import (
     Action,

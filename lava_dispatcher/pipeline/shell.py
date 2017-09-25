@@ -20,6 +20,7 @@
 
 import contextlib
 import pexpect
+from pexpect import popen_spawn
 import sys
 import time
 from lava_dispatcher.pipeline.action import (
@@ -70,7 +71,7 @@ class ShellLogger(object):
         sys.stderr.flush()
 
 
-class ShellCommand(pexpect.spawn):  # pylint: disable=too-many-public-methods
+class ShellCommand(popen_spawn.PopenSpawn):  # pylint: disable=too-many-public-methods
     """
     Run a command over a connection using pexpect instead of
     subprocess, i.e. not on the dispatcher itself.
@@ -84,7 +85,7 @@ class ShellCommand(pexpect.spawn):  # pylint: disable=too-many-public-methods
             raise RuntimeError("ShellCommand needs a timeout set by the calling Action")
         if not logger:
             raise RuntimeError("ShellCommand needs a logger")
-        pexpect.spawn.__init__(
+        popen_spawn.PopenSpawn.__init__(
             self, command,
             timeout=lava_timeout.duration,
             cwd=cwd,

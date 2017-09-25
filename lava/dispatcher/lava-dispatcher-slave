@@ -32,9 +32,10 @@ via the current dispatcher support.
 import argparse
 import atexit
 import errno
-import fcntl
+#import fcntl
 import logging
-import lzma
+#import lzma
+from backports import lzma as lzma
 import os
 import re
 import signal
@@ -48,10 +49,7 @@ import zmq
 import zmq.auth
 from zmq.utils.strtypes import b, u
 
-if sys.version >= '3':
-    LZMAError = lzma.LZMAError
-else:
-    LZMAError = lzma.error
+LZMAError = lzma.LZMAError
 
 # pylint: disable=no-member
 # pylint: disable=too-few-public-methods
@@ -73,7 +71,7 @@ SEND_QUEUE = 10
 # FIXME: This is a temporary fix until the overlay is sent to the master
 # The job.yaml and device.yaml are retained so that lava-dispatch can be re-run manually
 # (at least until the slave is rebooted).
-TMP_DIR = "/var/lib/lava/dispatcher/slave/tmp"
+TMP_DIR = r"C:\Users\dimi\workspace\Lava\tmp"
 
 # Create the logger that will be configured after arguments parsing
 FORMAT = "%(asctime)-15s %(levelname)s %(message)s"
@@ -184,7 +182,8 @@ class Job(object):
             LOG.debug("[%d] START", self.job_id)
             env = self.create_environ()
             args = [
-                "lava-dispatch",
+                "lava.exe",
+                "dispatch",
                 "--target",
                 os.path.join(self.base_dir, "device.yaml"),
                 os.path.join(self.base_dir, "job.yaml"),
@@ -203,7 +202,8 @@ class Job(object):
             self.proc = subprocess.Popen(
                 args,
                 stdout=open(out_file, "w"),
-                stderr=open(err_file, "w"), env=env)
+                #stderr=open(err_file, "w"), env=env)
+                stderr=open(err_file, "w"))
         except Exception as exc:  # pylint: disable=broad-except
             # daemon must always continue running even if the job crashes
             if hasattr(exc, "child_traceback"):
@@ -319,18 +319,18 @@ def create_zmq_context(master_uri, hostname, send_queue, encrypt,
     # received. Poll the pipe along with the zmq socket so that we can only be
     # interrupted while reading data.
     (pipe_r, pipe_w) = os.pipe()
-    flags = fcntl.fcntl(pipe_w, fcntl.F_GETFL, 0)
-    fcntl.fcntl(pipe_w, fcntl.F_SETFL, flags | os.O_NONBLOCK)
+    #flags = fcntl.fcntl(pipe_w, fcntl.F_GETFL, 0)
+    #fcntl.fcntl(pipe_w, fcntl.F_SETFL, flags | os.O_NONBLOCK)
 
     def signal_to_pipe(signum, frame):
         # Send the signal number on the pipe
         os.write(pipe_w, b(chr(signum)))
 
-    signal.signal(signal.SIGHUP, signal_to_pipe)
-    signal.signal(signal.SIGINT, signal_to_pipe)
+    #signal.signal(signal.SIGHUP, signal_to_pipe)
+    #signal.signal(signal.SIGINT, signal_to_pipe)
     signal.signal(signal.SIGTERM, signal_to_pipe)
-    signal.signal(signal.SIGQUIT, signal_to_pipe)
-    poller.register(pipe_r, zmq.POLLIN)
+    #signal.signal(signal.SIGQUIT, signal_to_pipe)
+    #poller.register(pipe_r, zmq.POLLIN)
 
     return context, sock, poller, pipe_r, pipe_w
 
