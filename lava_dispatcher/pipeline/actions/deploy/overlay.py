@@ -162,7 +162,7 @@ class OverlayAction(DeployAction):
                 with open(output_file, 'w') as fout:
                     fout.write("#!%s\n\n" % shell)
                     fout.write(fin.read())
-                    os.fchmod(fout.fileno(), self.xmod)
+                    ##os.fchmod(fout.fileno(), self.xmod)
         for fname in self.v2_scripts_to_copy:
             with open(fname, 'r') as fin:
                 foutname = os.path.basename(fname)
@@ -175,7 +175,7 @@ class OverlayAction(DeployAction):
                     if foutname == 'lava-target-ip':
                         fout.write("TARGET_DEVICE_IP='%s'\n" % self.target_ip)
                     fout.write(fin.read())
-                    os.fchmod(fout.fileno(), self.xmod)
+                    ##os.fchmod(fout.fileno(), self.xmod)
 
         # Generate the file containing the secrets
         if 'secrets' in self.job.parameters:
@@ -280,7 +280,7 @@ class MultinodeOverlayAction(OverlayAction):
                         # always write out full debug logs
                         fout.write("LAVA_MULTI_NODE_DEBUG='yes'\n")
                     fout.write(fin.read())
-                    os.fchmod(fout.fileno(), self.xmod)
+                    #os.fchmod(fout.fileno(), self.xmod)
         for fname in self.v2_scripts_to_copy:
             with open(fname, 'r') as fin:
                 foutname = os.path.basename(fname)
@@ -293,7 +293,7 @@ class MultinodeOverlayAction(OverlayAction):
                     # always write out full debug logs
                     fout.write("LAVA_MULTI_NODE_DEBUG='yes'\n")
                     fout.write(fin.read())
-                    os.fchmod(fout.fileno(), self.xmod)
+                    #os.fchmod(fout.fileno(), self.xmod)
         self.call_protocols()
         return connection
 
@@ -415,7 +415,7 @@ class VlandOverlayAction(OverlayAction):
                                 fout.write(r"%s\n" % line)
                     fout.write('"\n\n')
                     fout.write(fin.read())
-                    os.fchmod(fout.fileno(), self.xmod)
+                    #os.fchmod(fout.fileno(), self.xmod)
         self.call_protocols()
         return connection
 

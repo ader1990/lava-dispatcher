@@ -239,7 +239,7 @@ class CallHypervAction(Action):
 
     def __init__(self):
         super(CallHypervAction, self).__init__()
-        client = WinRemoteClient("10.7.1.30", "test", "Passw0rd")
+        client = WinRemoteClient("10.7.1.34", "test", "Passw0rd")
         (out, err, exit_code) = client.run_remote_cmd("hostname.exe","")
         self.name = "execute-hyperv-winrm-on-hostname-" + out
         self.description = "call hyperv via winrm to boot the image"

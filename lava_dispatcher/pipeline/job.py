@@ -77,7 +77,7 @@ class Job(object):  # pylint: disable=too-many-instance-attributes
         # safelly add the ZMQ handler. This way validate can log errors that
         # test writter will see.
         self.logger = logging.getLogger('dispatcher')
-        self.logger.info("MMMMMMMMMMMMMMMMMMMMMM %s" % socket_addr)
+        #self.logger.info("MMMMMMMMMMMMMMMMMMMMMM %s" % socket_addr)
         socket_addr = None
         if socket_addr is not None:
             # pylint: disable=no-member

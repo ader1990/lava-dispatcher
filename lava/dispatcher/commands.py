@@ -202,7 +202,8 @@ class dispatch(DispatcherCommand):
             logging.root.setLevel(self.config.logging_level)
 
         # Set process id if job-id was passed to dispatcher
-        if self.args.job_id:
+        """
+		if self.args.job_id:
             try:
                 from setproctitle import setproctitle
             except ImportError:
@@ -211,7 +212,7 @@ class dispatch(DispatcherCommand):
                      "process name cannot be changed"))
             else:
                 setproctitle("lava-dispatch [job: %s]" % self.args.job_id)
-
+        """
         # Load the job file
         job_runner, job_data = self.parse_job_file(self.args.job_file, oob_file)
 
@@ -269,7 +270,7 @@ class dispatch(DispatcherCommand):
                                                 'description.yaml')
                 if not os.path.exists(self.args.output_dir):
                     os.makedirs(self.args.output_dir)
-                    os.chmod(self.args.output_dir, 0o755)
+                    #os.chmod(self.args.output_dir, 0o755)
                 with open(description_file, 'w') as f_describe:
                     f_describe.write(yaml.dump(description))
 

@@ -931,11 +931,11 @@ class Timeout(object):
 
     @contextmanager
     def action_timeout(self):
-        signal.signal(signal.SIGALRM, self._timed_out)
-        signal.alarm(int(self.duration))
+        #signal.signal(signal.SIGALRM, self._timed_out)
+        #signal.alarm(int(self.duration))
         yield
         # clear the timeout alarm, the action has returned
-        signal.alarm(0)
+        #signal.alarm(0)
 
     def modify(self, duration):
         """
