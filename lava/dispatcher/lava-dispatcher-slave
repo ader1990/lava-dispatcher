@@ -122,7 +122,7 @@ class Job(object):
         self.proc = None
         self.status = Job.RUNNING
         self.finish_time = 0
-        self.base_dir = os.path.join(TMP_DIR, "%s/" % self.job_id)
+        self.base_dir = os.path.join(TMP_DIR, str(self.job_id))
         mkdir(self.base_dir)
 
         # Write back the job and device configuration
