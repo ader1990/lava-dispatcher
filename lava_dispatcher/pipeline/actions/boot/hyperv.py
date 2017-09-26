@@ -239,9 +239,7 @@ class CallHypervAction(Action):
 
     def __init__(self):
         super(CallHypervAction, self).__init__()
-        client = WinRemoteClient("10.7.1.34", "test", "Passw0rd")
-        (out, err, exit_code) = client.run_remote_cmd("hostname.exe","")
-        self.name = "execute-hyperv-winrm-on-hostname-" + out
+        self.name = "execute-hyperv-winrm-on-hostname"
         self.description = "call hyperv via winrm to boot the image"
         self.summary = "execute hyperv via winrm to boot the image"
         self.sub_command = []
@@ -262,5 +260,20 @@ class CallHypervAction(Action):
         to run commands issued *after* the device has booted.
         pexpect.spawn is one of the raw_connection objects for a Connection class.
         """
-        pass
+        self.sub_command = [r"C:\bin\icaserial.exe", r"read", r"\\localhost\pipe\helloworld"]
+        shell = ShellCommand(' '.join(self.sub_command), self.timeout, logger=self.logger)
+        if shell.exitstatus:
+            raise JobError("%s command exited %d: %s" % (self.sub_command, shell.exitstatus, shell.readlines()))
+        self.logger.debug("started a shell command")
+
+        shell_connection = ShellSession(self.job, shell)
+        if not shell_connection.prompt_str and self.parameters['method'] == 'qemu':
+            shell_connection.prompt_str = self.parameters['prompts']
+        shell_connection = super(CallHypervAction, self).run(shell_connection, args)
+
+        # FIXME: tests with multiple boots need to be handled too.
+        res = 'failed' if self.errors else 'success'
+        self.set_namespace_data(action='boot', label='shared', key='boot-result', value=res)
+        self.set_namespace_data(action='shared', label='shared', key='connection', value=shell_connection)
+        return shell_connection
 
