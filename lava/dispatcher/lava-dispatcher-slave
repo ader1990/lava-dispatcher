@@ -222,7 +222,7 @@ class Job(object):
         # self.proc can be None as cancel() is also called when the process
         # fails to start.
         if self.proc is not None:
-            self.proc.send_signal(signal.SIGINT)
+            self.proc.kill()
         # Set the status and store the time
         if self.status != Job.FINISHING:
             self.finish_time = time.time()
