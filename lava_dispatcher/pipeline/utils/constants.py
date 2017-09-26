@@ -57,7 +57,7 @@ SCP_DOWNLOAD_CHUNK_SIZE = 32768
 OVERRIDE_CLAMP_DURATION = 300
 
 # Auto-login prompt timeout default
-AUTOLOGIN_DEFAULT_TIMEOUT = 120
+AUTOLOGIN_DEFAULT_TIMEOUT = 300
 
 # dispatcher temporary directory
 # This is distinct from the TFTP daemon directory
@@ -98,7 +98,7 @@ LXC_TEMPLATE_WITH_MIRROR = ['debian', 'ubuntu']
 
 # Timeout used by the vland protocol when waiting for vland to
 # respond to the api.create_vlan request, in seconds.
-VLAND_DEPLOY_TIMEOUT = 120
+VLAND_DEPLOY_TIMEOUT = 300
 
 # ipxe boot interrupting
 IPXE_BOOT_PROMPT = "Press Ctrl-B for the iPXE command line"

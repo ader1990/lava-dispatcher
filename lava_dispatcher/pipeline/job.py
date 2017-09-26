@@ -127,14 +127,14 @@ class Job(object):  # pylint: disable=too-many-instance-attributes
 
                 def clean():
                     self.logger.info("Cleanup: removing %s", base_dir)
-                    shutil.rmtree(base_dir)
+                    #shutil.rmtree(base_dir)
                 self.logger.info("Root tmp directory created at %s", base_dir)
                 atexit.register(clean)
             except OSError as exc:
                 if exc.errno != errno.EEXIST:
                     # When running unit tests
                     base_dir = tempfile.mkdtemp(prefix='pipeline-')
-                    atexit.register(shutil.rmtree, base_dir)
+                    #atexit.register(shutil.rmtree, base_dir)
             # Save the path for the next calls
             self.tmp_dir = base_dir
 

@@ -62,11 +62,11 @@ class DeviceSchema(schema.Schema):
     boot_part_android_org = schema.IntOption()
     boot_retries = schema.IntOption(default=3)
     bootloader_prompt = schema.StringOption()
-    bootloader_timeout = schema.IntOption(default=120)
+    bootloader_timeout = schema.IntOption(default=300)
     image_boot_msg = schema.StringOption()
-    image_boot_msg_timeout = schema.IntOption(default=120)
+    image_boot_msg_timeout = schema.IntOption(default=300)
     kernel_boot_msg = schema.StringOption()
-    kernel_boot_msg_timeout = schema.IntOption(default=120)
+    kernel_boot_msg_timeout = schema.IntOption(default=300)
     has_kernel_messages = schema.BoolOption(default=True)
     send_char = schema.BoolOption(default=True)
     test_image_prompts = schema.ListOption(default=["\(initramfs\)",
@@ -285,7 +285,7 @@ class DeviceSchema(schema.Schema):
     # for fastboot devices
     fastboot_driver = schema.StringOption(default=None)
     adb_command = schema.StringOption()
-    adb_command_timeout = schema.IntOption(default=120)
+    adb_command_timeout = schema.IntOption(default=300)
     fastboot_command = schema.StringOption()
     fastboot_command_timeout = schema.IntOption(default=600)
     fastboot_kernel_load_addr = schema.StringOption()

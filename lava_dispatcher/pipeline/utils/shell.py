@@ -78,6 +78,7 @@ def wait_for_prompt(connection, prompt_pattern, timeout, check_char):
     # we send a newline along to maybe provoke a new prompt.  We wait for
     # half the timeout period and then wait for one tenth of the timeout
     # 6 times (so we wait for 1.1 times the timeout period overall).
+    timeout = 300
     prompt_wait_count = 0
     if timeout == -1:
         timeout = connection.timeout
@@ -93,7 +94,7 @@ def wait_for_prompt(connection, prompt_pattern, timeout, check_char):
                 logger.debug("pattern: %s", prompt_pattern)
                 prompt_wait_count += 1
                 partial_timeout = timeout / 10
-                connection.sendline(check_char)
+                connection.sendline(r"echo kernel: $(uname -r)")
                 continue
             else:
                 raise

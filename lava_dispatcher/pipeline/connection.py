@@ -151,12 +151,13 @@ class Connection(object):
     def finalise(self):
         if self.raw_connection:
             try:
+                pass
                 #os.killpg(self.raw_connection.pid, signal.SIGKILL)
-                self.logger.debug("Finalizing child process group with PID %d" % self.raw_connection.pid)
+                #self.logger.debug("Finalizing child process group with PID %d" % self.raw_connection.pid)
             except OSError:
                 self.raw_connection.kill(9)
                 self.logger.debug("Finalizing child process with PID %d" % self.raw_connection.pid)
-            self.raw_connection.close()
+            #self.raw_connection.close()
 
 
 class CommandRunner(object):

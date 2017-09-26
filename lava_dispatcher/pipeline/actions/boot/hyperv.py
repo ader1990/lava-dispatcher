@@ -45,135 +45,6 @@ import abc
 import six
 
 
-@six.add_metaclass(abc.ABCMeta)
-class BaseClient(object):
-    """Get a remote client to a Windows instance.
-
-    :param hostname:
-        A hostname where the client should connect. This can be
-        anything that the client needs (an IP, a fully qualified domain
-        name etc.).
-    """
-
-    def __init__(self, hostname, username, password, cert_pem, cert_key):
-        self._hostname = hostname
-        self._username = username
-        self._password = password
-        self._cert_pem = cert_pem
-        self._cert_key = cert_key
-
-    @abc.abstractmethod
-    def run_remote_cmd(self, command, command_type=None,
-                       upper_timeout=None):
-        """Run the given remote command.
-
-        The command will be executed on the remote underlying server.
-        It will return a tuple of three elements, stdout, stderr
-        and the return code of the command.
-        """
-
-
-class WinRemoteClient(BaseClient):
-    """Get a remote client to a Windows instance.
-    :param hostname: The IP where the client should be connected.
-    :param username: The username of the client.
-    :param password: The password of the remote client.
-    :param transport_protocol:
-        The transport for the WinRM protocol. Only HTTP and HTTPS makes
-        sense.
-    :param cert_pem:
-        Client authentication certificate file path in PEM format.
-    :param cert_key:
-        Client authentication certificate key file path in PEM format.
-    """
-    def __init__(self, hostname, username, password,
-                 transport_protocol='https',
-                 cert_pem=None, cert_key=None):
-        super(WinRemoteClient, self).__init__(hostname, username, password,
-                                              cert_pem, cert_key)
-        self._hostname = "{protocol}://{hostname}:{port}/wsman".format(
-            protocol=transport_protocol,
-            hostname=hostname,
-            port=5985 if transport_protocol == 'http' else 5986)
-
-    @staticmethod
-    def sanitize_command_output(content):
-        """Sanitizes the output got from underlying instances.
-        Sanitizes the output by only returning unicode characters,
-        any other characters will be ignored, and will also strip
-        down the content of unrequired spaces and newlines.
-        """
-        return six.text_type(content, errors='ignore').strip()
-
-    @staticmethod
-    def _run_command(protocol_client, shell_id, command,
-                     command_type,
-                     upper_timeout=10):
-        command_id = None
-        bare_command = command
-        thread_pool = pool.ThreadPool(processes=THREADS)
-
-        try:
-            command_id = protocol_client.run_command(shell_id, command)
-
-            result = thread_pool.apply_async(
-                protocol_client.get_command_output,
-                args=(shell_id, command_id))
-            stdout, stderr, exit_code = result.get(
-                timeout=upper_timeout)
-            if exit_code:
-                output = "\n\n".join([out for out in (stdout, stderr) if out])
-                raise exceptions.ArgusError(
-                    "Executing command {command!r} with encoded Command"
-                    "{encoded_command!r} failed with exit code {exit_code!r}"
-                    " and output {output!r}."
-                    .format(command=bare_command,
-                            encoded_command=command,
-                            exit_code=exit_code,
-                            output=output))
-
-            return WinRemoteClient.sanitize_command_output(stdout), stderr, exit_code
-        except multiprocessing.TimeoutError:
-            raise exceptions.ArgusTimeoutError(
-                "The command '{cmd}' has timed out.".format(cmd=bare_command))
-        finally:
-            thread_pool.terminate()
-            protocol_client.cleanup_command(shell_id, command_id)
-
-    def _run_commands(self, commands, commands_type,
-                      upper_timeout=10):
-        protocol_client = self._get_protocol()
-        shell_id = protocol_client.open_shell(codepage=CODEPAGE_UTF8)
-
-        try:
-            results = [self._run_command(protocol_client, shell_id, command,
-                                         commands_type, upper_timeout)
-                       for command in commands]
-        finally:
-            protocol_client.close_shell(shell_id)
-        return results
-
-    def _get_protocol(self):
-        protocol.Protocol.DEFAULT_TIMEOUT = "PT3600S"
-        return protocol.Protocol(endpoint=self._hostname,
-                                 transport='plaintext',
-                                 username=self._username,
-                                 password=self._password,
-                                 server_cert_validation='ignore',
-                                 cert_pem=self._cert_pem,
-                                 cert_key_pem=self._cert_key)
-
-    def run_remote_cmd(self, cmd, command_type,
-                       upper_timeout=10):
-        """Run the given remote command.
-        The command will be executed on the remote underlying server.
-        It will return a tuple of three elements, stdout, stderr
-        and the return code of the command.
-        """
-        return self._run_commands([cmd], command_type,
-                                  upper_timeout=upper_timeout)[0]
-
-
 class BootHyperv(Boot):
     """
     The Boot method prepares the command to run on the dispatcher but this
@@ -260,8 +131,38 @@ class CallHypervAction(Action):
         to run commands issued *after* the device has booted.
         pexpect.spawn is one of the raw_connection objects for a Connection class.
         """
-        self.sub_command = [r"C:\bin\icaserial.exe", r"read", r"\\localhost\pipe\helloworld"]
+        namespace = self.parameters.get('namespace', 'common')
+        for label in self.data[namespace]['download_action'].keys():
+            if label == 'offset' or label == 'available_loops' or label == 'uefi':
+                continue
+            image_path = self.get_namespace_data(action='download_action', label=label, key='file')
+        if not image_path:
+            raise JobError("Image could not be found")
+        self.logger.info("Extending command line for hyperv test overlay with image: %s" % image_path)
+
+        hyperv_platform_path = r"C:\Users\avlad\\work\\projects\\lis-pipeline\\scripts\\lis_hyperv_platform\\"
+        kernel_artifacts_url = r"http://10.7.1.35/kernel/deb"
+        mkisofs_path = r"C:\\bin\\mkisofs.exe"
+        instance_name = ("LavaInstance%s" % self.job.job_id)
+        kernel_version = "4.13.2"
+        vm_check_timeout = "200"
+        kernel_url = (r'@("%s/hyperv-daemons_4.13.2_amd64.deb",'
+                      r'"%s/linux-headers-4.13.2_4.13.2-10.00.Custom_amd64.deb",'
+                      r'"%s/linux-image-4.13.2_4.13.2-10.00.Custom_amd64.deb")' % (kernel_artifacts_url,
+                                                                                   kernel_artifacts_url,
+                                                                                   kernel_artifacts_url))
+        config_drive_path = '%sconfigdrive' % hyperv_platform_path
+        user_data_path = "%sinstall_kernel.sh" % hyperv_platform_path
+        self.sub_command.append(("powershell.exe %s\main.ps1 -VHDPath %s "
+                                "-ConfigDrivePath %s -UserDataPath %s -KernelURL %s "
+                                "-MkIsoFS %s -InstanceName %s -KernelVersion %s "
+                                "-VMCheckTimeout %s;" % (hyperv_platform_path, image_path, config_drive_path,
+                                                         user_data_path, kernel_url, mkisofs_path,
+                                                         instance_name, kernel_version,
+                                                         vm_check_timeout)).encode('string_escape'))
+
         shell = ShellCommand(' '.join(self.sub_command), self.timeout, logger=self.logger)
+
         if shell.exitstatus:
             raise JobError("%s command exited %d: %s" % (self.sub_command, shell.exitstatus, shell.readlines()))
         self.logger.debug("started a shell command")
