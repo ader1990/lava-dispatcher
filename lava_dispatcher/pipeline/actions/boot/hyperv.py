@@ -139,33 +139,32 @@ class CallHypervAction(Action):
         if not image_path:
             raise JobError("Image could not be found")
         self.logger.info("Extending command line for hyperv test overlay with image: %s" % image_path)
-
-        hyperv_platform_path = r"C:\Users\avlad\\work\\projects\\lis-pipeline\\scripts\\lis_hyperv_platform\\"
-        kernel_artifacts_url = r"http://10.7.1.35/kernel/deb"
+        hyperv_platform_path = r"C:\\Users\\avlad\\work\projects\\lis-pipeline\\scripts\\lis_hyperv_platform\\"
+        kernel_artifacts_url = self.parameters['kernel_artifacts_url']
         mkisofs_path = r"C:\\bin\\mkisofs.exe"
         instance_name = ("LavaInstance%s" % self.job.job_id)
-        kernel_version = "4.13.2"
+        kernel_version = self.parameters['kernel_version']
         vm_check_timeout = "200"
-        kernel_url = (r'@("%s/hyperv-daemons_4.13.2_amd64.deb",'
-                      r'"%s/linux-headers-4.13.2_4.13.2-10.00.Custom_amd64.deb",'
-                      r'"%s/linux-image-4.13.2_4.13.2-10.00.Custom_amd64.deb")' % (kernel_artifacts_url,
-                                                                                   kernel_artifacts_url,
-                                                                                   kernel_artifacts_url))
+        kernel_url = (r'@("%s/hyperv-daemons_%s_amd64.deb",'
+                      r'"%s/linux-headers-%s_%s-10.00.Custom_amd64.deb",'
+                      r'"%s/linux-image-%s_%s-10.00.Custom_amd64.deb")' % (kernel_artifacts_url, kernel_version,
+                                                                                   kernel_artifacts_url,kernel_version,kernel_version,
+                                                                                   kernel_artifacts_url,kernel_version,kernel_version))
         config_drive_path = '%sconfigdrive' % hyperv_platform_path
         user_data_path = "%sinstall_kernel.sh" % hyperv_platform_path
-        self.sub_command.append(("powershell.exe %s\main.ps1 -VHDPath %s "
+        self.sub_command.append("powershell.exe %s\main.ps1 -VHDPath %s "
                                 "-ConfigDrivePath %s -UserDataPath %s -KernelURL %s "
                                 "-MkIsoFS %s -InstanceName %s -KernelVersion %s "
                                 "-VMCheckTimeout %s;" % (hyperv_platform_path, image_path, config_drive_path,
                                                          user_data_path, kernel_url, mkisofs_path,
                                                          instance_name, kernel_version,
-                                                         vm_check_timeout)).encode('string_escape'))
+                                                         vm_check_timeout))
 
         shell = ShellCommand(' '.join(self.sub_command), self.timeout, logger=self.logger)
 
         if shell.exitstatus:
             raise JobError("%s command exited %d: %s" % (self.sub_command, shell.exitstatus, shell.readlines()))
-        self.logger.debug("started a shell command")
+        self.logger.info("Started shell command: %s" %(self.sub_command))
 
         shell_connection = ShellSession(self.job, shell)
         if not shell_connection.prompt_str and self.parameters['method'] == 'qemu':
@@ -177,4 +176,3 @@ class CallHypervAction(Action):
         self.set_namespace_data(action='boot', label='shared', key='boot-result', value=res)
         self.set_namespace_data(action='shared', label='shared', key='connection', value=shell_connection)
         return shell_connection
-
