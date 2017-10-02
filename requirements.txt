@@ -2,3 +2,13 @@ pexpect
 lockfile
 python-daemon
 setproctitle
+azure-common==1.1.4
+azure-mgmt-compute==0.30.0rc5
+azure-mgmt-network==0.30.0rc5
+azure-mgmt-nspkg==1.0.0
+azure-mgmt-resource==0.30.0rc5
+azure-mgmt-storage==0.30.0rc5
+azure-nspkg==1.0.0
+azure-storage==0.32.0
+msrest==0.4.1
+msrestazure==0.4.1

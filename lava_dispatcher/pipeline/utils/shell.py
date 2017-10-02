@@ -91,7 +91,8 @@ def wait_for_prompt(connection, prompt_pattern, timeout, check_char):
                 logger.debug("pattern: %s", prompt_pattern)
                 prompt_wait_count += 1
                 partial_timeout = timeout / 10
-                connection.sendline(check_char)
+                #connection.sendline(check_char)
+                connection.sendline(r"echo kernel: $(uname -r)")
                 continue
             else:
                 raise

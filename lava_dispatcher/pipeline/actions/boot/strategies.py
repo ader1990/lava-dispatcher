@@ -24,6 +24,7 @@
 # pylint: disable=unused-import
 
 from lava_dispatcher.pipeline.actions.boot.qemu import BootQEMU
+from lava_dispatcher.pipeline.actions.boot.azure_boot import BootAzure
 from lava_dispatcher.pipeline.actions.boot.pyocd import BootMonitorPyOCD
 from lava_dispatcher.pipeline.actions.boot.dfu import DFU
 from lava_dispatcher.pipeline.actions.boot.u_boot import UBoot
