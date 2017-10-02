@@ -80,7 +80,7 @@ class ApplyOverlayGuest(Action):
         self.set_namespace_data(action=self.name, label='guest', key='filename', value=guest_file)
         blkid = prepare_guestfs(
             guest_file, overlay_file,
-            self.job.device['actions']['deploy']['methods']['image']['parameters']['guest']['size'])
+            100)
         self.results = {'success': blkid}
         self.set_namespace_data(action=self.name, label='guest', key='UUID', value=blkid)
         return connection
