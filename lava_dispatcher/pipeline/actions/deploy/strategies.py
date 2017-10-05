@@ -27,6 +27,7 @@ from lava_dispatcher.pipeline.actions.deploy.image import (
     DeployImages,
     DeployMonitoredPyOCD
 )
+from lava_dispatcher.pipeline.actions.boot.hyperv import BootHyperv
 from lava_dispatcher.pipeline.actions.deploy.tftp import Tftp
 from lava_dispatcher.pipeline.actions.deploy.removable import MassStorage
 from lava_dispatcher.pipeline.actions.deploy.ssh import Ssh
