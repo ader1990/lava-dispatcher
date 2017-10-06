@@ -257,9 +257,11 @@ class CallHypervAction(Action):
         if not image_path:
             raise JobError("Image could not be found")
         self.logger.info("Extending command line for hyperv test overlay with image: %s" % image_path)
-        hyperv_platform_path = r"C:\\lis-pipeline\\scripts\\lis_hyperv_platform\\"
+
+        boot_options = winrm_options = self.job.device['actions']['boot']['methods']['hyperv']['parameters']['options']
+        hyperv_platform_path = boot_options['lis_pipeline_scripts_path']
+        mkisofs_path = boot_options['mkisofs_path']
         kernel_artifacts_url = self.parameters['kernel_artifacts_url']
-        mkisofs_path = r"mkisofs.exe"
         instance_name = ("LavaInstance%s" % self.job.job_id)
         kernel_version = self.parameters['kernel_version']
         vm_check_timeout = 200
@@ -273,8 +275,15 @@ class CallHypervAction(Action):
                                                          instance_name, kernel_version,
                                                          vm_check_timeout)).encode('string_escape')
         self.logger.info("winrm command to execute is: %s" % (cmd))
-        client = WinRemoteClient("<IP>", "<USER>", "PASSWORD")
+        winrm_options = boot_options['winrm']
+        client = WinRemoteClient(winrm_options['ip'], winrm_options['user'],winrm_options['password'])
         (out, err, exit_code) = client.run_remote_cmd(cmd=cmd,command_type=None,upper_timeout=vm_check_timeout)
+        if exit_code is not 0:
+            self.logger.error(out)
+            self.logger.error(err)
+            raise JobError("%s command exited with error code: %d" % (cmd, exit_code))
+        else:
+            self.logger.info(out)
         out_ip = None
         out_ip_line = out.find('IP for the instance is: ')
         if out_ip_line > 0:
