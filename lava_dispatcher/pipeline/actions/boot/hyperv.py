@@ -259,6 +259,7 @@ class CallHypervAction(Action):
         self.logger.info("Extending command line for hyperv test overlay with image: %s" % image_path)
 
         boot_options = winrm_options = self.job.device['actions']['boot']['methods']['hyperv']['parameters']['options']
+        shared_storage_path = boot_options['shared_storage_path']
         hyperv_platform_path = boot_options['lis_pipeline_scripts_path']
         mkisofs_path = boot_options['mkisofs_path']
         kernel_artifacts_url = self.parameters['kernel_artifacts_url']
@@ -267,13 +268,14 @@ class CallHypervAction(Action):
         vm_check_timeout = 200
         config_drive_path = '%sconfigdrive' % hyperv_platform_path
         user_data_path = "%sinstall_kernel.sh" % hyperv_platform_path
-        cmd = ("powershell.exe %s\winrm.ps1 -ArgumentList -VHDPath %s "
+        cmd = ("powershell.exe %s\winrm.ps1 -ArgumentList -SharedStoragePath %s -VHDPath %s "
                                 "-ConfigDrivePath %s -UserDataPath %s -KernelURL %s "
                                 "-MkIsoFS %s -InstanceName %s -KernelVersion %s "
-                                "-VMCheckTimeout %d;" % (hyperv_platform_path, image_path, config_drive_path,
+                                "-VMCheckTimeout %d;" % (hyperv_platform_path, shared_storage_path,
+                                                         image_path, config_drive_path,
                                                          user_data_path, kernel_artifacts_url, mkisofs_path,
                                                          instance_name, kernel_version,
-                                                         vm_check_timeout)).encode('string_escape')
+                                                         vm_check_timeout))
         self.logger.info("winrm command to execute is: %s" % (cmd))
         winrm_options = boot_options['winrm']
         client = WinRemoteClient(winrm_options['ip'], winrm_options['user'],winrm_options['password'])
