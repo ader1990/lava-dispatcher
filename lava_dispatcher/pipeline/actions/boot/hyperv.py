@@ -287,9 +287,9 @@ class CallHypervAction(Action):
         else:
             self.logger.info(out)
         out_ip = None
-        out_ip_line = out.find('IP for the instance is: ')
+        out_ip_line = out.find('IP for the instance is: >>>>')
         if out_ip_line > 0:
-            out_ip = out[out_ip_line+24:out.find('<<<<') -1]
+            out_ip = out[out_ip_line+29:out.find('<<<<') -1]
         import os
         id_rsa_path = os.path.join(os.path.dirname(image_path), "id_rsa")
         self.sub_command.append('bash /root/lava-dispatcher/ssh.sh -o StrictHostKeyChecking=no -i %s -ttt ubuntu@%s' % (id_rsa_path, out_ip))
@@ -303,9 +303,21 @@ class CallHypervAction(Action):
         if not shell_connection.prompt_str and self.parameters['method'] == 'qemu':
             shell_connection.prompt_str = self.parameters['prompts']
         shell_connection = super(CallHypervAction, self).run(shell_connection, args)
+        finalise_cmd = ("powershell.exe %s\\tear_down_env.ps1 -InstanceName %s" % (hyperv_platform_path, instance_name))
+        shell_connection.onfinalise = lambda: self.finalise(client, finalise_cmd, vm_check_timeout)
 
         # FIXME: tests with multiple boots need to be handled too.
         res = 'failed' if self.errors else 'success'
         self.set_namespace_data(action='boot', label='shared', key='boot-result', value=res)
         self.set_namespace_data(action='shared', label='shared', key='connection', value=shell_connection)
         return shell_connection
+
+    def finalise(self, client, finalise_cmd, vm_check_timeout):
+        self.logger.info('Finalising Hyper-V boot action.')
+        self.logger.info("Started finalise shell command: %s" %(finalise_cmd))
+        (out, err, exit_code) = client.run_remote_cmd(cmd=finalise_cmd,command_type=None,upper_timeout=vm_check_timeout)
+        if exit_code is not 0:
+            self.logger.error(out)
+            self.logger.error(err)
+        else:
+            self.logger.info(out)

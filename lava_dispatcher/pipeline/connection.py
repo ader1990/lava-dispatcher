@@ -18,6 +18,7 @@
 # along
 # with this program; if not, see <http://www.gnu.org/licenses>.
 
+import logging
 import os
 import time
 import pexpect
@@ -129,6 +130,8 @@ class Connection(object):
         self.match = None
         self.connected = True
         self.check_char = '#'
+        self.logger = logging.getLogger('dispatcher')
+        self.onfinalise = None
 
     def corruption_check(self):
         self.sendline(self.check_char)
@@ -149,6 +152,10 @@ class Connection(object):
         raise NotImplementedError()
 
     def finalise(self):
+        self.logger.info("Terminating connection...")
+        if self.onfinalise:
+             self.logger.debug("Executing finalise...")
+             self.onfinalise()
         if self.raw_connection:
             try:
                 os.killpg(self.raw_connection.pid, signal.SIGKILL)
