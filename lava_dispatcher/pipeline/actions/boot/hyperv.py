@@ -328,10 +328,15 @@ class CallHypervAction(Action):
         if out_ip_line > 0:
             out_ip = out[out_ip_line + 29:out.find('<<<<') - 1]
         id_rsa_path = os.path.join(os.path.dirname(image_path), "id_rsa")
+        # Note(avladu): Use image os type to decide what default user is
+        # needed for ssh connection
+        instance_username = 'ubuntu'
+        if (image_path.lower().find('centos') > -1):
+            instance_username = 'centos'
         self.sub_command.append(
             'bash /root/lava-dispatcher/ssh.sh -o StrictHostKeyChecking=no '
-            '-i %s -ttt ubuntu@%s'
-            % (id_rsa_path, out_ip))
+            '-i %s -ttt %s@%s'
+            % (id_rsa_path, instance_username, out_ip))
         shell = ShellCommand(' '.join(self.sub_command),
                              self.timeout, logger=self.logger)
 
