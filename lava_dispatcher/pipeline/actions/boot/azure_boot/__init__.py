@@ -1,5 +1,9 @@
+import pexpect
 import paramiko
-import paramiko_expect
+import socket
+import time
+
+import pexpect.pxssh
 
 from lava_dispatcher.pipeline.utils.constants import LINE_SEPARATOR
 from lava_dispatcher.pipeline.logical import Boot, RetryAction
@@ -9,8 +13,10 @@ from lava_dispatcher.pipeline.actions.boot import (
 )
 from lava_dispatcher.pipeline.action import (
     Pipeline,
+    InfrastructureError,
     Action,
-    JobError
+    JobError,
+    TestError
 )
 
 from lava_dispatcher.pipeline.actions.boot.environment import (
@@ -18,7 +24,8 @@ from lava_dispatcher.pipeline.actions.boot.environment import (
 )
 from lava_dispatcher.pipeline.shell import (
     ExpectShellSession,
-    ShellCommand
+    ShellCommand,
+    ShellLogger
 )
 from lava_dispatcher.pipeline.custom_shell import (
     CustomShellSession
@@ -30,7 +37,7 @@ from lava_dispatcher.pipeline.actions.boot.azure_boot.azure_client import (
 SSH_PRIVATE_PATH_FORMAT = "/tmp/id_rsa_%s.pem"
 
 
-class ParamikoShellCommand(paramiko_expect.SSHClientInteraction):
+class ParamikoShellCommand(pexpect.pxssh.pxssh):
     """
     Run a command over a connection using pexpect instead of
     subprocess, i.e. not on the dispatcher itself.
@@ -38,39 +45,23 @@ class ParamikoShellCommand(paramiko_expect.SSHClientInteraction):
     A ShellCommand is a raw_connection for a ShellConnection instance.
     """
 
-    def __init__(self, username, hostname, pkey, lava_timeout, logger=None, cwd=None):
+    def __init__(self, username, hostname, pkey, lava_timeout, logger, options={}):
+
+        super(ParamikoShellCommand, self).__init__(timeout=lava_timeout.duration,
+                    logfile=None, options=options)
+
+        self.login(username=username, server=hostname, login_timeout=lava_timeout.duration,
+                   ssh_key=pkey, port=22)
         self.username = username
         self.hostname = hostname
         self.pkey = pkey
-        self.client = paramiko.SSHClient()
-        self.client.set_missing_host_key_policy(paramiko.client.AutoAddPolicy())
-        self.client.connect(hostname=self.hostname,
-                       port=22, username=self.username,
-                       pkey=self.pkey, timeout=self.lava_timeout.duration)
-
-        super(ParamikoShellCommand, self).__init__(client=self.client, timeout=lava_timeout.duration,
-                                                   display=True,
-                                                   output_callback=lambda m: logger.info(m))
+        self.lava_timeout = lava_timeout
         self.name = "ParamikoShellCommand"
-        self.before = None
-        self.after = None
         self.logger = logger
         # set a default newline character, but allow actions to override as neccessary
         self.linesep = LINE_SEPARATOR
-        self.lava_timeout = lava_timeout
 
-    def reconnect(self):
-        if not self.client.get_transport().is_active():
-            self.logger.info('Reconnecting to ssh channel')
-            try:
-                self.client.close()
-            except:
-                pass
-            self.client.connect(hostname=self.hostname,
-                       port=22, username=self.username,
-                       pkey=self.pkey, timeout=self.lava_timeout.duration)
-
-    def sendline(self, s='', delay=0, send_char=False):  # pylint: disable=arguments-differ
+    def sendline(self, s='', delay=0):  # pylint: disable=arguments-differ
         """
         Extends pexpect.sendline so that it can support the delay argument which allows a delay
         between sending each character to get around slow serial problems (iPXE).
@@ -80,36 +71,34 @@ class ParamikoShellCommand(paramiko_expect.SSHClientInteraction):
         """
         send_char = False
         if delay > 0:
-            self.logger.debug("Sending with %s millisecond of delay", delay)
+            #self.logger.debug("Sending with %s millisecond of delay", delay)
+            print("Sending with %s millisecond of delay", delay)
             send_char = True
-        self.logger.info(s + self.linesep)
-        self.send(s)
-        self.send(self.linesep)
+        print(s + self.linesep)
+        #self.logger.input(s + self.linesep)
+        self.send(s, delay, send_char)
+        self.send(self.linesep, delay)
 
     def sendcontrol(self, char):
-        return self.send(char)
+        #self.logger.input(char)
+        print(char)
+        return super(ParamikoShellCommand, self).sendcontrol(char)
 
     def send(self, string, delay=0, send_char=True):  # pylint: disable=arguments-differ
         """
         Extends pexpect.send to support extra arguments, delay and send by character flags.
         """
-        self.reconnect()
         sent = 0
         if not string:
             return sent
         delay = float(delay) / 1000
         if send_char:
             for char in string:
-                sent = super(ParamikoShellCommand, self).send(char)
+                sent += super(ParamikoShellCommand, self).send(char)
                 time.sleep(delay)
         else:
-            try:
-                sent = super(ParamikoShellCommand, self).send(string)
-            except:
-                self.reconnect()
-                raise TestError("ShellCommand command failed.")
+            sent = super(ParamikoShellCommand, self).send(string)
         return sent
-
 
     def expect(self, *args, **kw):
         """
@@ -117,14 +106,8 @@ class ParamikoShellCommand(paramiko_expect.SSHClientInteraction):
         the TestShellAction make much more useful reports of what was matched
         """
         try:
-            self.reconnect()
             proc = super(ParamikoShellCommand, self).expect(*args, **kw)
         except pexpect.TIMEOUT:
-            raise TestError("ShellCommand command timed out.")
-        except socket.error:
-            self.reconnect()
-            raise TestError("ShellCommand command failed.")
-        except socket.timeout:
             raise TestError("ShellCommand command timed out.")
         except ValueError as exc:
             raise TestError(exc)
@@ -264,19 +247,19 @@ class CallAzureAction(Action):
                                                  label='results',
                                                  key='lava_test_results_dir')
             shell_precommand_list.append('sudo -i')
-            shell_precommand_list.append('whoami')
             shell_precommand_list.append('tar -xzvf /home/%s/overlay-'
                                          '1.3.4.tar.gz --directory / > /dev/null' % (
                                              azure_params['vm_username']))
-            shell_precommand_list.append('ls /')
             shell_precommand_list.append('ls -la %s/bin/lava-test-runner' % mountpoint)
             self.set_namespace_data(action='test', label='lava-test-shell',
                                     key='pre-command-list', value=shell_precommand_list)
-
         shell = ParamikoShellCommand(username=azure_params['vm_username'],
-                                     hostname = azure_backend.floating_ip(),
-                                     pkey = azure_backend.private_key(),
-                                     lava_timeout = self.timeout, logger=self.logger)
+                                    hostname = azure_backend.floating_ip(),
+                                    pkey = SSH_PRIVATE_PATH_FORMAT % (azure_backend.instance_server()['name']),
+                                    lava_timeout = self.timeout, logger=self.logger,
+                                    options={
+                                         "StrictHostKeyChecking": "no",
+                                         "UserKnownHostsFile": "/dev/null"})
 
         shell_connection = CustomShellSession(self.job, shell)
         shell_connection.prompt_str = ['kernel: %s' % self.parameters['kernel_version']]
