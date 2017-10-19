@@ -70,7 +70,7 @@ class BaseAzureBackend(object):
 
     def private_key(self):
         """Get the underlying private key."""
-        pass
+        return self._azure_client.pkey
 
     def ssh_connection(self):
         """Get the paramiko ssh connection."""
@@ -105,6 +105,7 @@ class BaseAzureClient(object):
                  resource_group_name=None, storage_account_name=None,
                  availability_zone=None, vm_username=None,
                  resources_prefix=None):
+        self.pkey = None
         self.vm_disk_size = 50000
         self._subscription_id = subscription_id
         self._username = username
@@ -179,7 +180,6 @@ class AzureClient(BaseAzureClient):
         self._vip_name = random_prefix + "-msftk-vip"
         self._ip_config_name = random_prefix + "-msftk-ip"
         self._sec_group_name = random_prefix + "-msftk-secgrp"
-        self._key = None
 
     def create_vm(self):
         nic = self.create_nic()
@@ -326,8 +326,8 @@ class AzureClient(BaseAzureClient):
                               os_disk_name, nic_id):
         """Create the VM parameters structure.
         """
-        self._key = paramiko.RSAKey.generate(2048)
-        self._key.write_private_key_file(SSH_PRIVATE_PATH_FORMAT % (vm_name))
+        self.pkey = paramiko.RSAKey.generate(2048)
+        self.pkey.write_private_key_file(SSH_PRIVATE_PATH_FORMAT % (vm_name))
         vhd_uri = 'https://{}.blob.core.windows.net/vhds/{}.vhd'.format(
             self._storage_account_name, vm_name)
         userdata_base64 = None
@@ -346,7 +346,7 @@ class AzureClient(BaseAzureClient):
                     "ssh": {
                         "public_keys": [{
                             "key_data": (SSH_PUBKEY_FORMAT % (
-                                         self._key.get_base64())),
+                                         self.pkey.get_base64())),
                             "path": SSH_PUBKEY_FILEPATH_FORMAT % vm_username}
                         ]
                     }
@@ -397,6 +397,6 @@ class AzureClient(BaseAzureClient):
        ssh_client.set_missing_host_key_policy(paramiko.client.AutoAddPolicy())
        ssh_client.connect(hostname=self.get_floating_ip(),
                           port=22, username=self._vm_username,
-                          pkey=self._key)
+                          pkey=self.pkey)
        return ssh_client
 

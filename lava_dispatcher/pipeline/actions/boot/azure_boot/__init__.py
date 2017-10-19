@@ -1,3 +1,7 @@
+import paramiko
+import paramiko_expect
+
+from lava_dispatcher.pipeline.utils.constants import LINE_SEPARATOR
 from lava_dispatcher.pipeline.logical import Boot, RetryAction
 from lava_dispatcher.pipeline.actions.boot import (
     BootAction,
@@ -26,6 +30,116 @@ from lava_dispatcher.pipeline.actions.boot.azure_boot.azure_client import (
 SSH_PRIVATE_PATH_FORMAT = "/tmp/id_rsa_%s.pem"
 
 
+class ParamikoShellCommand(paramiko_expect.SSHClientInteraction):
+    """
+    Run a command over a connection using pexpect instead of
+    subprocess, i.e. not on the dispatcher itself.
+    Takes a Timeout object (to support overrides and logging)
+    A ShellCommand is a raw_connection for a ShellConnection instance.
+    """
+
+    def __init__(self, username, hostname, pkey, lava_timeout, logger=None, cwd=None):
+        self.username = username
+        self.hostname = hostname
+        self.pkey = pkey
+        self.client = paramiko.SSHClient()
+        self.client.set_missing_host_key_policy(paramiko.client.AutoAddPolicy())
+        self.client.connect(hostname=self.hostname,
+                       port=22, username=self.username,
+                       pkey=self.pkey, timeout=self.lava_timeout.duration)
+
+        super(ParamikoShellCommand, self).__init__(client=self.client, timeout=lava_timeout.duration,
+                                                   display=True,
+                                                   output_callback=lambda m: logger.info(m))
+        self.name = "ParamikoShellCommand"
+        self.before = None
+        self.after = None
+        self.logger = logger
+        # set a default newline character, but allow actions to override as neccessary
+        self.linesep = LINE_SEPARATOR
+        self.lava_timeout = lava_timeout
+
+    def reconnect(self):
+        if not self.client.get_transport().is_active():
+            self.logger.info('Reconnecting to ssh channel')
+            try:
+                self.client.close()
+            except:
+                pass
+            self.client.connect(hostname=self.hostname,
+                       port=22, username=self.username,
+                       pkey=self.pkey, timeout=self.lava_timeout.duration)
+
+    def sendline(self, s='', delay=0, send_char=False):  # pylint: disable=arguments-differ
+        """
+        Extends pexpect.sendline so that it can support the delay argument which allows a delay
+        between sending each character to get around slow serial problems (iPXE).
+        pexpect sendline does exactly the same thing: calls send for the string then os.linesep.
+        :param s: string to send
+        :param delay: delay in milliseconds between sending each character
+        """
+        send_char = False
+        if delay > 0:
+            self.logger.debug("Sending with %s millisecond of delay", delay)
+            send_char = True
+        self.logger.info(s + self.linesep)
+        self.send(s)
+        self.send(self.linesep)
+
+    def sendcontrol(self, char):
+        return self.send(char)
+
+    def send(self, string, delay=0, send_char=True):  # pylint: disable=arguments-differ
+        """
+        Extends pexpect.send to support extra arguments, delay and send by character flags.
+        """
+        self.reconnect()
+        sent = 0
+        if not string:
+            return sent
+        delay = float(delay) / 1000
+        if send_char:
+            for char in string:
+                sent = super(ParamikoShellCommand, self).send(char)
+                time.sleep(delay)
+        else:
+            try:
+                sent = super(ParamikoShellCommand, self).send(string)
+            except:
+                self.reconnect()
+                raise TestError("ShellCommand command failed.")
+        return sent
+
+
+    def expect(self, *args, **kw):
+        """
+        No point doing explicit logging here, the SignalDirector can help
+        the TestShellAction make much more useful reports of what was matched
+        """
+        try:
+            self.reconnect()
+            proc = super(ParamikoShellCommand, self).expect(*args, **kw)
+        except pexpect.TIMEOUT:
+            raise TestError("ShellCommand command timed out.")
+        except socket.error:
+            self.reconnect()
+            raise TestError("ShellCommand command failed.")
+        except socket.timeout:
+            raise TestError("ShellCommand command timed out.")
+        except ValueError as exc:
+            raise TestError(exc)
+        except pexpect.EOF:
+            # FIXME: deliberately closing the connection (and starting a new one) needs to be supported.
+            raise InfrastructureError("Connection closed")
+        return proc
+
+    def empty_buffer(self):
+        """Make sure there is nothing in the pexpect buffer."""
+        index = 0
+        while index == 0:
+            index = self.expect(['.+', pexpect.EOF, pexpect.TIMEOUT], timeout=1)
+
+
 class BootAzure(Boot):
     """
     The Boot method prepares the command to run on the dispatcher but this
@@ -45,8 +159,8 @@ class BootAzure(Boot):
 
     @classmethod
     def accepts(cls, device, parameters):
-        #if 'hyperv' not in device['actions']['boot']['methods']:
-        #    return False
+        if 'azure' not in device['actions']['boot']['methods']:
+            return False
         if 'method' not in parameters:
             return False
         if parameters['method'] not in ['azure']:
@@ -125,9 +239,6 @@ class CallAzureAction(Action):
         stdin, stdout, stderr = ssh_connection.exec_command('uname -a')
         for line in stdout:
             self.logger.info(line.strip('\n'))
-        #azure_backend.cleanup()
-        #interact = paramiko_expect.SSHClientInteraction(ssh_connection)
-        #return interact
 
         self.logger.info('SCPing the test overlay to the machine under test')
         guest = self.get_namespace_data(action='apply-overlay-guest',
@@ -162,24 +273,18 @@ class CallAzureAction(Action):
             self.set_namespace_data(action='test', label='lava-test-shell',
                                     key='pre-command-list', value=shell_precommand_list)
 
-        self.sub_command.append(
-            'bash /root/lava-dispatcher/ssh.sh -o StrictHostKeyChecking=no '
-            '-i %s -ttt %s@%s'
-            % (SSH_PRIVATE_PATH_FORMAT % (azure_backend.instance_server()['name']),
-               azure_params['vm_username'], azure_backend.floating_ip()))
-        shell = ShellCommand(' '.join(self.sub_command),
-                             self.timeout, logger=self.logger)
-
-        if shell.exitstatus:
-            raise JobError("%s command exited %d: %s" % (
-                self.sub_command, shell.exitstatus, shell.readlines()))
-        self.logger.info("Started shell command: %s" % (self.sub_command))
+        shell = ParamikoShellCommand(username=azure_params['vm_username'],
+                                     hostname = azure_backend.floating_ip(),
+                                     pkey = azure_backend.private_key(),
+                                     lava_timeout = self.timeout, logger=self.logger)
 
         shell_connection = CustomShellSession(self.job, shell)
+        shell_connection.prompt_str = ['kernel: %s' % self.parameters['kernel_version']]
         shell_connection = super(CallAzureAction, self).run(
             shell_connection, args)
 
         shell_connection.onfinalise = lambda: azure_backend.cleanup()
+
         res = 'failed' if self.errors else 'success'
         self.set_namespace_data(
             action='boot', label='shared', key='boot-result', value=res)

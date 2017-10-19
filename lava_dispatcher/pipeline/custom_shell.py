@@ -16,7 +16,7 @@ class CustomShellSession(ShellSession):
         self.onfinalise = None
 
     def finalise(self):
-        self.logger.info("Terminating shell session ...")
+        self.logger.info("Terminating shell session...")
         if self.onfinalise:
              self.logger.debug("Executing finalise...")
              self.onfinalise()
